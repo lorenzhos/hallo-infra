@@ -9,7 +9,7 @@ terraform {
 
 resource "aws_lightsail_key_pair" "meiner" {
   name       = "terraform-key"
-    public_key = file("${path.module}/lightsail.pub")
+  public_key = file("${path.module}/lightsail.pub")
 }
 
 provider "aws" {
