@@ -79,3 +79,73 @@ jobs:
           echo "proxy_ip=$(terraform output -raw proxy_public_ip)"      >> "$GITHUB_OUTPUT"
           echo "backend_ip=$(terraform output -raw backend_private_ip)" >> "$GITHUB_OUTPUT"
           echo "db_ip=$(terraform output -raw db_private_ip)"           >> "$GITHUB_OUTPUT"
+  ausrollen:
+    name: Ausrollen
+    needs: infrastruktur
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Images bauen und packen
+        run: |
+          docker build -t hallo-app:1.0 app
+          docker build -f app/Dockerfile.caddy -t hallo-caddy:1.0 app
+          docker pull mysql:8.0
+          mkdir -p ansible/files/images
+          docker save hallo-app:1.0 hallo-caddy:1.0 | gzip > ansible/files/images/app-1.0.tar.gz
+          docker save hallo-caddy:1.0              | gzip > ansible/files/images/caddy-1.0.tar.gz
+          docker save mysql:8.0                    | gzip > ansible/files/images/mysql-8.0.tar.gz
+
+      - name: SSH einrichten
+        env:
+          SSH_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          PROXY_IP: ${{ needs.infrastruktur.outputs.proxy_ip }}
+          BACKEND_IP: ${{ needs.infrastruktur.outputs.backend_ip }}
+          DB_IP: ${{ needs.infrastruktur.outputs.db_ip }}
+        run: |
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          cat > ~/.ssh/config <<EOF
+          Host proxy
+              HostName $PROXY_IP
+              User ubuntu
+              IdentityFile ~/.ssh/id_ed25519
+              StrictHostKeyChecking accept-new
+          Host backend
+              HostName $BACKEND_IP
+              User ubuntu
+              IdentityFile ~/.ssh/id_ed25519
+              ProxyJump proxy
+              StrictHostKeyChecking accept-new
+          Host db
+              HostName $DB_IP
+              User ubuntu
+              IdentityFile ~/.ssh/id_ed25519
+              ProxyJump proxy
+              StrictHostKeyChecking accept-new
+          EOF
+          chmod 600 ~/.ssh/config
+
+      - name: Ansible installieren
+        run: pipx install ansible-core
+
+      - name: Vault-Passwort ablegen
+        env:
+          VAULT_PASSWORD: ${{ secrets.VAULT_PASSWORD }}
+        run: |
+          printf '%s' "$VAULT_PASSWORD" > ~/.vaultpass
+          chmod 600 ~/.vaultpass
+
+      - name: Playbooks ausführen
+        working-directory: ansible
+        env:
+          ANSIBLE_VAULT_PASSWORD_FILE: /home/runner/.vaultpass
+          BACKEND_IP: ${{ needs.infrastruktur.outputs.backend_ip }}
+          DB_IP: ${{ needs.infrastruktur.outputs.db_ip }}
+        run: |
+          ansible-playbook -i inventory.ini docker.yml
+          ansible-playbook -i inventory.ini db.yml
+          ansible-playbook -i inventory.ini backend.yml -e "db_host=$DB_IP"
+          ansible-playbook -i inventory.ini proxy.yml   -e "backend_host=$BACKEND_IP"
