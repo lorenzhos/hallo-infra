@@ -1,0 +1,58 @@
+---
+- name: Docker auf Lightsail einrichten
+  hosts: all
+  become: true
+
+  tasks:
+    - name: Paketliste aktualisieren
+      apt:
+        update_cache: true
+        cache_valid_time: 3600
+
+    - name: Swap-Datei anlegen
+      command:
+        cmd: fallocate -l 2G /swapfile
+        creates: /swapfile
+
+    - name: Rechte auf Swap-Datei setzen
+      file:
+        path: /swapfile
+        mode: "0600"
+
+    - name: Swap formatieren
+      command:
+        cmd: mkswap /swapfile
+      register: mkswap_out
+      changed_when: "'LABEL' in mkswap_out.stdout or 'no label' in mkswap_out.stdout"
+      failed_when: false
+
+    - name: Swap in fstab eintragen
+      lineinfile:
+        path: /etc/fstab
+        line: "/swapfile none swap sw 0 0"
+        state: present
+
+    - name: Swap aktivieren
+      command:
+        cmd: swapon /swapfile
+      failed_when: false
+
+
+    - name: Docker und Compose installieren
+      apt:
+        name:
+          - docker.io
+          - docker-compose-v2
+        state: present
+
+    - name: Docker-Dienst starten und aktivieren
+      systemd:
+        name: docker
+        state: started
+        enabled: true
+
+    - name: Benutzer zur docker-Gruppe hinzufügen
+      user:
+        name: ubuntu
+        groups: docker
+        append: true

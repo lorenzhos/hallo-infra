@@ -1,0 +1,63 @@
+---
+- name: Datenbank einrichten
+  hosts: datenbank
+  become: true
+
+  vars:
+    pfad: /home/ubuntu/db
+
+  tasks:
+    - name: Verzeichnis anlegen
+      file:
+        path: "{{ pfad }}"
+        state: directory
+        owner: ubuntu
+        group: ubuntu
+        mode: "0755"
+
+    - name: Compose-Datei kopieren
+      copy:
+        src: rollen/db/docker-compose.yml
+        dest: "{{ pfad }}/docker-compose.yml"
+        owner: ubuntu
+        group: ubuntu
+        mode: "0644"
+
+    - name: .env ausrollen
+      copy:
+        src: files/env.vault
+        dest: "{{ pfad }}/.env"
+        owner: ubuntu
+        group: ubuntu
+        mode: "0600"
+        decrypt: true
+
+    - name: Image-Archiv übertragen
+      copy:
+        src: files/images/mysql-8.0.tar.gz
+        dest: /tmp/mysql-8.0.tar.gz
+        mode: "0644"
+      register: archiv
+
+    - name: Prüfen ob Image vorhanden
+      command: docker image inspect mysql:8.0
+      register: vorhanden
+      failed_when: false
+      changed_when: false
+      become_user: ubuntu
+
+    - name: Image laden
+      shell: gunzip -c /tmp/mysql-8.0.tar.gz | docker load
+      become_user: ubuntu
+      when: vorhanden.rc != 0 or archiv.changed
+
+    - name: Archiv aufräumen
+      file:
+        path: /tmp/mysql-8.0.tar.gz
+        state: absent
+
+    - name: Container starten
+      command:
+        cmd: docker compose up -d
+        chdir: "{{ pfad }}"
+      become_user: ubuntu

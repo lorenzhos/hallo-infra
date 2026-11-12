@@ -1,0 +1,66 @@
+---
+- name: hallo-projekt ausrollen
+  hosts: lightsail
+  become: true
+
+  vars:
+    projekt_pfad: /home/ubuntu/hallo-projekt
+
+  tasks:
+    - name: Projektverzeichnis anlegen
+      file:
+        path: "{{ projekt_pfad }}"
+        state: directory
+        owner: ubuntu
+        group: ubuntu
+        mode: "0755"
+
+    - name: Dateien kopieren
+      copy:
+        src: "files/{{ item }}"
+        dest: "{{ projekt_pfad }}/{{ item }}"
+        owner: ubuntu
+        group: ubuntu
+        mode: "0644"
+      loop:
+        - docker-compose.yml
+        - Caddyfile
+
+    - name: .env ausrollen
+      copy:
+        src: files/env.vault
+        dest: "{{ projekt_pfad }}/.env"
+        owner: ubuntu
+        group: ubuntu
+        mode: "0600"
+        decrypt: true
+
+    - name: Image-Archiv übertragen
+      copy:
+        src: files/images/stack-1.0.tar.gz
+        dest: /tmp/stack-1.0.tar.gz
+        mode: "0644"
+      register: archiv
+
+    - name: Prüfen ob Images vorhanden
+      command: docker image inspect hallo-app:1.0
+      register: vorhanden
+      failed_when: false
+      changed_when: false
+      become_user: ubuntu
+
+    - name: Images laden
+      shell: gunzip -c /tmp/stack-1.0.tar.gz | docker load
+      become_user: ubuntu
+      when: vorhanden.rc != 0 or archiv.changed
+
+    - name: Archiv aufräumen
+      file:
+        path: /tmp/stack-1.0.tar.gz
+        state: absent
+
+    - name: Container starten
+      command:
+        cmd: docker compose up -d
+        chdir: "{{ projekt_pfad }}"
+      become_user: ubuntu

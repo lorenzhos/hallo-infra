@@ -1,0 +1,52 @@
+services:
+  app:
+    image: hallo-app:1.0
+    restart: always
+    depends_on:
+      - db
+    environment:
+      DB_HOST: db
+      DB_USER: hallo
+      DB_PASSWORD: ${MYSQL_PASSWORD}
+      DB_NAME: hallo
+      FLASK_DEBUG: "0"
+
+  db:
+    image: mysql:8.0
+    volumes:
+      - db_data:/var/lib/mysql
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: hallo
+      MYSQL_USER: hallo
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+
+  wordpress:
+    image: wordpress:latest
+    depends_on:
+      - db
+    restart: always
+    environment:
+      WORDPRESS_DB_HOST: db:3306
+      WORDPRESS_DB_USER: hallo
+      WORDPRESS_DB_PASSWORD: ${MYSQL_PASSWORD}
+      WORDPRESS_DB_NAME: wordpress
+
+  caddy:
+    image: hallo-caddy:1.0
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile
+      - ./acmedns-credentials.json:/etc/caddy/acmedns-credentials.json:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
+volumes:
+  db_data: {}
+  caddy_data: {}
+  caddy_config: {}

@@ -1,0 +1,18 @@
+services:
+  app:
+    image: hallo-app:1.0
+    restart: always
+    environment:
+      DB_HOST: 172.26.9.156
+      DB_USER: hallo
+      DB_PASSWORD: ${MYSQL_PASSWORD}
+      DB_NAME: hallo
+      FLASK_DEBUG: "0"
+
+  caddy:
+    image: hallo-caddy:1.0
+    restart: always
+    ports:
+      - "80:80"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile

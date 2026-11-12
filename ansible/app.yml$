@@ -1,0 +1,48 @@
+---
+- name: hallo-projekt ausrollen
+  hosts: lightsail
+  become: true
+
+  vars:
+    projekt_pfad: /home/ubuntu/hallo-projekt
+
+  tasks:
+    - name: Projektverzeichnis anlegen
+      file:
+        path: "{{ projekt_pfad }}"
+        state: directory
+        owner: ubuntu
+        group: ubuntu
+        mode: "0755"
+
+    - name: Dateien kopieren
+      copy:
+        src: "files/{{ item }}"
+        dest: "{{ projekt_pfad }}/{{ item }}"
+        owner: ubuntu
+        group: ubuntu
+        mode: "0644"
+
+      loop:
+        - docker-compose.yml
+        - Caddyfile
+
+    - name: Caddy-Binary ausführbar machen
+      file:
+        path: "{{ projekt_pfad }}/caddy-acmedns"
+        mode: "0755"
+
+    - name: .env ausrollen
+      copy:
+        src: files/env.vault
+        dest: "{{ projekt_pfad }}/.env"
+        owner: ubuntu
+        group: ubuntu
+        mode: "0600"
+        decrypt: true
+
+    - name: Container starten
+      command:
+        cmd: docker compose up -d --build
+        chdir: "{{ projekt_pfad }}"
+      become_user: ubuntu

@@ -1,0 +1,76 @@
+---
+- name: Proxy einrichten
+  hosts: proxyserver
+  become: true
+
+  vars:
+    pfad: /home/ubuntu/proxy
+
+  tasks:
+    - name: Verzeichnis anlegen
+      file:
+        path: "{{ pfad }}"
+        state: directory
+        owner: ubuntu
+        group: ubuntu
+        mode: "0755"
+
+    - name: Compose-Datei kopieren
+      copy:
+        src: rollen/proxy/docker-compose.yml
+        dest: "{{ pfad }}/docker-compose.yml"
+        owner: ubuntu
+        group: ubuntu
+        mode: "0644"
+
+    - name: Caddyfile mit Zugangsdaten ausrollen
+      copy:
+        src: files/proxy-Caddyfile.vault
+        dest: "{{ pfad }}/Caddyfile"
+        owner: ubuntu
+        group: ubuntu
+        mode: "0600"
+        decrypt: true
+      notify: Caddy neu laden
+
+    - name: Altes .env entfernen
+      file:
+        path: "{{ pfad }}/.env"
+        state: absent
+
+    - name: Image-Archiv übertragen
+      copy:
+        src: files/images/caddy-1.0.tar.gz
+        dest: /tmp/caddy-1.0.tar.gz
+        mode: "0644"
+      register: archiv
+
+    - name: Prüfen ob Image vorhanden
+      command: docker image inspect hallo-caddy:1.0
+      register: vorhanden
+      failed_when: false
+      changed_when: false
+      become_user: ubuntu
+
+    - name: Image laden
+      shell: gunzip -c /tmp/caddy-1.0.tar.gz | docker load
+      become_user: ubuntu
+      when: vorhanden.rc != 0 or archiv.changed
+
+    - name: Archiv aufräumen
+      file:
+        path: /tmp/caddy-1.0.tar.gz
+        state: absent
+
+    - name: Container starten
+      command:
+        cmd: docker compose up -d --remove-orphans
+        chdir: "{{ pfad }}"
+      become_user: ubuntu
+
+  handlers:
+    - name: Caddy neu laden
+      command:
+        cmd: docker compose exec -T caddy caddy reload --config /etc/caddy/Caddyfile
+        chdir: "{{ pfad }}"
+      become_user: ubuntu

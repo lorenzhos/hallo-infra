@@ -1,0 +1,7 @@
+.terraform/
+*.tfstate
+*.tfstate.*
+ansible/files/images/
+*.pem
+*.retry
+__pycache__/

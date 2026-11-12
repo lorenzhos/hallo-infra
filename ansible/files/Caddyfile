@@ -1,0 +1,11 @@
+{
+    acme_dns acmedns /etc/caddy/acmedns-credentials.json
+}
+
+app.lorenzhosnerink.ch {
+    reverse_proxy app:5000
+}
+
+blog.lorenzhosnerink.ch {
+    reverse_proxy wordpress:80
+}
