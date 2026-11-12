@@ -15,16 +15,21 @@
         group: ubuntu
         mode: "0755"
 
-    - name: Dateien kopieren
+    - name: Caddyfile kopieren
       copy:
-        src: "rollen/backend/{{ item }}"
-        dest: "{{ pfad }}/{{ item }}"
+        src: rollen/backend/Caddyfile
+        dest: "{{ pfad }}/Caddyfile"
         owner: ubuntu
         group: ubuntu
         mode: "0644"
-      loop:
-        - docker-compose.yml
-        - Caddyfile
+
+    - name: Compose-Datei aus Vorlage schreiben
+      template:
+        src: rollen/backend/docker-compose.yml.j2
+        dest: "{{ pfad }}/docker-compose.yml"
+        owner: ubuntu
+        group: ubuntu
+        mode: "0644"
 
     - name: .env ausrollen
       copy:

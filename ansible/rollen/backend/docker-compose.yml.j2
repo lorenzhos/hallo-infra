@@ -3,7 +3,7 @@ services:
     image: hallo-app:1.0
     restart: always
     environment:
-      DB_HOST: 172.26.9.156
+      DB_HOST: {{ db_host }}
       DB_USER: hallo
       DB_PASSWORD: ${MYSQL_PASSWORD}
       DB_NAME: hallo

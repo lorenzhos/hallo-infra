@@ -5,7 +5,7 @@
 
   vars:
     pfad: /home/ubuntu/proxy
-
+    domain: app.lorenzhosnerink.ch
   tasks:
     - name: Verzeichnis anlegen
       file:
@@ -23,14 +23,13 @@
         group: ubuntu
         mode: "0644"
 
-    - name: Caddyfile mit Zugangsdaten ausrollen
-      copy:
-        src: files/proxy-Caddyfile.vault
+    - name: Caddyfile aus Vorlage schreiben
+      template:
+        src: rollen/proxy/Caddyfile.j2
         dest: "{{ pfad }}/Caddyfile"
         owner: ubuntu
         group: ubuntu
         mode: "0600"
-        decrypt: true
       notify: Caddy neu laden
 
     - name: Altes .env entfernen

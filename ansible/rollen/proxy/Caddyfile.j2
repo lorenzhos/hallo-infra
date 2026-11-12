@@ -1,0 +1,12 @@
+{{ domain }} {
+    reverse_proxy {{ backend_host }}:80
+
+    tls {
+        dns acmedns {
+            username {{ acmedns_username }}
+            password {{ acmedns_password }}
+            subdomain {{ acmedns_subdomain }}
+            server_url https://auth.acme-dns.io
+        }
+    }
+}
