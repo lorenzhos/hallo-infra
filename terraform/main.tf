@@ -22,7 +22,7 @@ resource "aws_lightsail_instance" "proxy" {
   blueprint_id      = "ubuntu_24_04"
   bundle_id         = "nano_3_0"
   key_pair_name     = aws_lightsail_key_pair.meiner.name
-  
+
 }
 
 resource "aws_lightsail_instance" "backend" {
@@ -31,7 +31,7 @@ resource "aws_lightsail_instance" "backend" {
   blueprint_id      = "ubuntu_24_04"
   bundle_id         = "nano_ipv6_3_0"
   key_pair_name     = aws_lightsail_key_pair.meiner.name
-  ip_address_type   = "ipv6" 
+  ip_address_type   = "ipv6"
 }
 
 resource "aws_lightsail_instance" "db" {
@@ -59,10 +59,10 @@ resource "aws_lightsail_instance_public_ports" "proxy" {
   }
 
   port_info {
-    protocol          = "tcp"
-    from_port         = 22
-    to_port           = 22
-    cidrs             = ["0.0.0.0/0"]
+    protocol  = "tcp"
+    from_port = 22
+    to_port   = 22
+    cidrs     = ["0.0.0.0/0"]
     #cidr_list_aliases = ["lightsail-connect"]
   }
 }

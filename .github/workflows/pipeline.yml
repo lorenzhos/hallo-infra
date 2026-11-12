@@ -1,0 +1,40 @@
+name: Infrastruktur und Deployment
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  pruefen:
+    name: Prüfen
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.10.5
+          terraform_wrapper: false
+
+      - name: Formatierung prüfen
+        working-directory: terraform
+        run: terraform fmt -check -recursive
+
+      - name: Terraform validieren
+        working-directory: terraform
+        run: |
+          terraform init -backend=false
+          terraform validate
+
+      - name: Ansible installieren
+        run: pipx install ansible-core
+
+      - name: Playbooks auf Syntax prüfen
+        working-directory: ansible
+        run: |
+          for p in docker.yml db.yml backend.yml proxy.yml; do
+            ansible-playbook -i inventory.ini "$p" --syntax-check
+          done
+
