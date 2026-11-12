@@ -38,3 +38,44 @@ jobs:
             ansible-playbook -i inventory.ini "$p" --syntax-check
           done
 
+  infrastruktur:
+    name: Infrastruktur
+    needs: pruefen
+    runs-on: ubuntu-latest
+    outputs:
+      proxy_ip: ${{ steps.werte.outputs.proxy_ip }}
+      backend_ip: ${{ steps.werte.outputs.backend_ip }}
+      db_ip: ${{ steps.werte.outputs.db_ip }}
+    env:
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      AWS_REGION: eu-central-1
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.10.5
+          terraform_wrapper: false
+
+      - name: Init
+        working-directory: terraform
+        run: terraform init
+
+      - name: Plan
+        working-directory: terraform
+        run: terraform plan -no-color
+
+      - name: Apply
+        if: github.event_name != 'pull_request'
+        working-directory: terraform
+        run: terraform apply -auto-approve -no-color
+
+      - name: Adressen auslesen
+        id: werte
+        if: github.event_name != 'pull_request'
+        working-directory: terraform
+        run: |
+          echo "proxy_ip=$(terraform output -raw proxy_public_ip)"      >> "$GITHUB_OUTPUT"
+          echo "backend_ip=$(terraform output -raw backend_private_ip)" >> "$GITHUB_OUTPUT"
+          echo "db_ip=$(terraform output -raw db_private_ip)"           >> "$GITHUB_OUTPUT"
